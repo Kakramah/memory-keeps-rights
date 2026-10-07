@@ -1,9 +1,6 @@
 .DS_Store
-Thumbs.db
-.idea/
-.vscode/
-node_modules/
-dist/
+._*
 .env
-.env.*
-!.env.example
+*.bak
+node_modules/
+review/*.png
