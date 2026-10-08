@@ -283,12 +283,13 @@ function buildWall(w, h, seed) {
   const patches = Array.from({ length: 10 }, (_, i) => ({
     x: w * (.02 + .1 * i) + (r() - .5) * 20 * s, y: h * (.12 + r() * .1), w: w * (.16 + r() * .08), h: h * (.5 + r() * .25), thr: i / 10, rot: (r() - .5) * .05
   }));
+  const specks = Array.from({ length: 220 }, () => ({ x: r() * w, y: r() * h, a: .05 + r() * .12, z: (.6 + r() * 1.6) * s }));
   const cracks = Array.from({ length: 9 }, () => {
     let x = r() * w, y = r() * h * .3; const p = [[x, y]];
     for (let k = 0; k < 7; k++) { x += (r() - .5) * 40 * s; y += (10 + r() * 30) * s; p.push([x, y]); }
     return p;
   });
-  return { strokes, patches, cracks, s };
+  return { strokes, patches, cracks, specks, s };
 }
 
 function drawWall(ctx, w, h, t, st, L) {
@@ -297,10 +298,12 @@ function drawWall(ctx, w, h, t, st, L) {
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, C('wall-base0')); g.addColorStop(1, C('wall-base1'));
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = C('wall-crack');
+  for (const q of L.specks) { ctx.globalAlpha = q.a; ctx.fillRect(q.x, q.y, q.z, q.z); }
   ctx.strokeStyle = C('wall-crack'); ctx.globalAlpha = .45; ctx.lineWidth = 1.1 * s;
   for (const p of L.cracks) { ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (const q of p) ctx.lineTo(q[0], q[1]); ctx.stroke(); }
   ctx.globalAlpha = 1;
-  ctx.strokeStyle = C('wall-ink'); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 3.2 * s;
+  ctx.strokeStyle = C('wall-ink'); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 3.8 * s;
   for (const k of L.strokes) {
     ctx.globalAlpha = .82; ctx.beginPath(); ctx.moveTo(k.pts[0][0], k.pts[0][1]);
     for (let i = 1; i < k.pts.length - 1; i++) { const m = [(k.pts[i][0] + k.pts[i + 1][0]) / 2, (k.pts[i][1] + k.pts[i + 1][1]) / 2]; ctx.quadraticCurveTo(k.pts[i][0], k.pts[i][1], m[0], m[1]); }
@@ -310,8 +313,15 @@ function drawWall(ctx, w, h, t, st, L) {
   for (const p of L.patches) {
     const a = clamp((f - p.thr) * 8); if (a <= 0) continue;
     ctx.save(); ctx.translate(p.x + p.w / 2, p.y + p.h / 2); ctx.rotate(p.rot);
-    ctx.globalAlpha = a * .96; ctx.fillStyle = C('wall-wash'); ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-    ctx.globalAlpha = a * .22; ctx.fillStyle = C('wall-crack'); ctx.fillRect(-p.w / 2, p.h / 2 - 4 * s, p.w, 4 * s);
+    const hw = p.w / 2, hh = p.h / 2, j = 7 * s;
+    ctx.globalAlpha = a * .95; ctx.fillStyle = C('wall-wash');
+    ctx.beginPath(); ctx.moveTo(-hw, -hh + j);
+    ctx.quadraticCurveTo(-hw + j, -hh - j, 0, -hh + j * .3); ctx.quadraticCurveTo(hw - j, -hh - j * .6, hw, -hh + j);
+    ctx.quadraticCurveTo(hw + j, 0, hw - j * .4, hh); ctx.quadraticCurveTo(0, hh + j, -hw + j, hh - j * .3); ctx.quadraticCurveTo(-hw - j * .5, 0, -hw, -hh + j);
+    ctx.fill();
+    ctx.globalAlpha = a * .16; ctx.strokeStyle = C('wall-base0'); ctx.lineWidth = 1.2 * s;
+    for (let y = -hh + 9 * s; y < hh; y += 11 * s) { ctx.beginPath(); ctx.moveTo(-hw + j, y); ctx.lineTo(hw - j, y + 2 * s); ctx.stroke(); }
+    ctx.globalAlpha = a * .2; ctx.fillStyle = C('wall-crack'); ctx.fillRect(-hw + j, hh - 3 * s, p.w - 2 * j, 3 * s);
     ctx.restore();
   }
   ctx.globalAlpha = 1;
@@ -348,11 +358,17 @@ function drawWindow(ctx, w, h, t, st, L) {
   const room = ctx.createLinearGradient(0, fy, 0, fy + fh);
   room.addColorStop(0, C('win-room1')); room.addColorStop(1, C('win-room0'));
   ctx.globalAlpha = clamp(k * 1.1); ctx.fillStyle = room; ctx.fillRect(fx, fy, fw, fh); ctx.globalAlpha = 1;
-  ctx.fillStyle = C('win-furn'); ctx.globalAlpha = .9;
-  ctx.fillRect(fx + fw * .12, fy + fh * .62, fw * .76, 5 * s);
-  ctx.fillRect(fx + fw * .16, fy + fh * .62, 5 * s, fh * .38); ctx.fillRect(fx + fw * .8, fy + fh * .62, 5 * s, fh * .38);
-  ctx.fillRect(fx + fw * .58, fy + fh * .48, 5 * s, fh * .52); ctx.fillRect(fx + fw * .58, fy + fh * .48, fw * .2, 5 * s);
-  ctx.fillRect(fx + fw * .56, fy + fh * .8, fw * .26, 5 * s);
+  ctx.fillStyle = C('win-furn'); ctx.globalAlpha = clamp(.55 + k * .45);
+  const ty = fy + fh * .64;
+  ctx.fillRect(fx + fw * .1, ty, fw * .8, 8 * s);
+  ctx.fillRect(fx + fw * .15, ty, 6 * s, fh * .36); ctx.fillRect(fx + fw * .8, ty, 6 * s, fh * .36);
+  ctx.fillRect(fx + fw * .12, ty + 18 * s, fw * .76, 4 * s);
+  const cx0 = fx + fw * .24, cy0 = fy + fh * .76;
+  ctx.fillRect(cx0, cy0, fw * .17, 7 * s); ctx.fillRect(cx0, cy0, 6 * s, fh * .24); ctx.fillRect(cx0 + fw * .17 - 6 * s, cy0, 6 * s, fh * .24);
+  ctx.fillRect(cx0, cy0 - fh * .2, 6 * s, fh * .2); ctx.fillRect(cx0, cy0 - fh * .2, fw * .03, 6 * s);
+  ctx.fillRect(cx0 + fw * .015, cy0 - fh * .15, 4 * s, fh * .15);
+  ctx.beginPath(); ctx.moveTo(fx + fw * .44, ty); ctx.lineTo(fx + fw * .44, ty - 16 * s); ctx.lineTo(fx + fw * .5, ty - 16 * s); ctx.lineTo(fx + fw * .5, ty); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(fx + fw * .47, ty - 20 * s, 7 * s, 3 * s, 0, 0, 7); ctx.fill();
   ctx.globalAlpha = 1;
   ctx.fillStyle = C('win-curtain'); ctx.fillRect(fx, fy, fw * .17, fh); ctx.fillRect(fx + fw * .85, fy, fw * .15, fh);
   ctx.strokeStyle = C('win-frame'); ctx.lineWidth = 6 * s; ctx.strokeRect(fx, fy, fw, fh);
