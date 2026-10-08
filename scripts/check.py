@@ -26,7 +26,7 @@ class PageCheck(HTMLParser):
             self.title = True
         if tag == "h1":
             self.h1 = True
-        if tag == "img" and not attrs.get("alt"):
+        if tag == "img" and "alt" not in attrs:
             self.errors.append("صورة بلا وصف alt")
         for key in ("src", "href"):
             value = attrs.get(key, "")
